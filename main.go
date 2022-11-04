@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -26,7 +28,7 @@ type Student struct {
 
 // To post the student details
 func CreateStudentEndpoint(response http.ResponseWriter, request *http.Request) {
-	fmt.Println("This is Insert API")
+	log.Println("This is Insert API")
 	response.Header().Set("content-type", "application/json")
 	response.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	// response.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
@@ -34,15 +36,15 @@ func CreateStudentEndpoint(response http.ResponseWriter, request *http.Request) 
 	var student Student
 	client = MongoDBConnection(clientOptions)
 	json.NewDecoder(request.Body).Decode(&student)
-	collection := client.Database("student_db").Collection("student_data")
+	collection := client.Database("student_db_qa").Collection("student_data")
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	// fmt.Println("Insert data: \n", student)
 
 	if student.Firstname == "" || student.Lastname == "" {
 		// To eleminate empty record insertion
 	} else {
 		result, err := collection.InsertOne(ctx, student)
 		if err != nil {
+			log.Println(err)
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 			return
@@ -54,17 +56,20 @@ func CreateStudentEndpoint(response http.ResponseWriter, request *http.Request) 
 
 // To fetch the student data
 func GetStudentEndpoint(response http.ResponseWriter, request *http.Request) {
+	log.Println("This is Fetch API")
 	client = MongoDBConnection(clientOptions)
 	response.Header().Set("content-type", "application/json")
 	response.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	response.Header().Set("Access-Control-Allow-Origin", "*")
 	params := mux.Vars(request)
+
 	id, _ := primitive.ObjectIDFromHex(params["id"])
 	var student Student
 	collection := client.Database("student_db").Collection("student_data")
 	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
 	err := collection.FindOne(ctx, Student{ID: id}).Decode(&student)
 	if err != nil {
+		log.Println(err)
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 		return
@@ -74,7 +79,7 @@ func GetStudentEndpoint(response http.ResponseWriter, request *http.Request) {
 
 // To update the student details
 func UpdateStudentEndpoint(response http.ResponseWriter, request *http.Request) {
-	fmt.Println("This is Update API")
+	log.Println("This is Update API")
 	response.Header().Set("content-type", "application/json")
 	response.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	response.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -100,6 +105,7 @@ func UpdateStudentEndpoint(response http.ResponseWriter, request *http.Request) 
 
 	result, err := coll.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
+		log.Println(err)
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 		return
@@ -115,7 +121,7 @@ func UpdateStudentEndpoint(response http.ResponseWriter, request *http.Request) 
 }
 
 func DeleteStudentEndpoint(response http.ResponseWriter, request *http.Request) {
-	fmt.Println("This is Delete API")
+	log.Println("This is Delete API")
 	response.Header().Set("content-type", "application/json")
 	response.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	response.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
@@ -130,6 +136,7 @@ func DeleteStudentEndpoint(response http.ResponseWriter, request *http.Request) 
 	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
 	res, err := collection.DeleteOne(ctx, bson.M{"_id": id})
 	if err != nil {
+		log.Println(err)
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 		return
@@ -147,9 +154,11 @@ func DeleteStudentEndpoint(response http.ResponseWriter, request *http.Request) 
 
 // To get the list of Students
 func GetStudentsListEndpoint(response http.ResponseWriter, request *http.Request) {
+	log.Println("This is Students list API")
 	response.Header().Set("content-type", "application/json")
 	response.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	response.Header().Set("Access-Control-Allow-Origin", "*")
+
 	var students []Student
 	// Database connection
 	client = MongoDBConnection(clientOptions)
@@ -162,12 +171,14 @@ func GetStudentsListEndpoint(response http.ResponseWriter, request *http.Request
 		return
 	}
 	defer cursor.Close(ctx)
+
 	for cursor.Next(ctx) {
 		var student Student
 		cursor.Decode(&student)
 		students = append(students, student)
 	}
 	if err := cursor.Err(); err != nil {
+		log.Print(err)
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 		return
@@ -175,9 +186,22 @@ func GetStudentsListEndpoint(response http.ResponseWriter, request *http.Request
 	json.NewEncoder(response).Encode(students)
 }
 
+func openLogFile() *os.File {
+	f, err := os.OpenFile("access.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return f
+}
+
 // Main function
 func main() {
 	fmt.Println("Starting the application...")
+
+	logFile := openLogFile()
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
 	clientOptions = options.Client().ApplyURI("mongodb+srv://mongo642:Altrancg123@cluster0.3ptkea0.mongodb.net/test?retryWrites=true&w=majority")
 	// fmt.Println("Clinet ", client)
 	router := mux.NewRouter()
