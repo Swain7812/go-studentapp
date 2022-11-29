@@ -19,6 +19,11 @@ import (
 var client *mongo.Client
 var clientOptions *options.ClientOptions
 
+const (
+	mongo_db_string  = "mongodb+srv://mongo642:Altrancg123@cluster0.3ptkea0.mongodb.net/test?retryWrites=true&w=majority"
+	cosmos_db_string = "mongodb://go-cosmos-db:rtebVmg3rVIF7vKsGAWuhSMrI535idmfh0T148oIlNWakgAWpGVnbCyryNVlYy4FprtpbJC2vX1oACDbJe5SDQ==@go-cosmos-db.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@go-cosmos-db@"
+)
+
 type Student struct {
 	ID primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	// ID        primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
@@ -36,7 +41,7 @@ func CreateStudentEndpoint(response http.ResponseWriter, request *http.Request) 
 	var student Student
 	client = MongoDBConnection(clientOptions)
 	json.NewDecoder(request.Body).Decode(&student)
-	collection := client.Database("student_db_qa").Collection("student_data")
+	collection := client.Database("student_db").Collection("student_data")
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 
 	if student.Firstname == "" || student.Lastname == "" {
@@ -202,7 +207,7 @@ func main() {
 	defer logFile.Close()
 	log.SetOutput(logFile)
 
-	clientOptions = options.Client().ApplyURI("mongodb+srv://mongo642:Altrancg123@cluster0.3ptkea0.mongodb.net/test?retryWrites=true&w=majority")
+	clientOptions = options.Client().ApplyURI(cosmos_db_string)
 	// fmt.Println("Clinet ", client)
 	router := mux.NewRouter()
 	// To insert the student details
