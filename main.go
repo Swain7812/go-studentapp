@@ -207,7 +207,7 @@ func main() {
 	defer logFile.Close()
 	log.SetOutput(logFile)
 
-	clientOptions = options.Client().ApplyURI(cosmos_db_string)
+	clientOptions = options.Client().ApplyURI(mongo_db_string)
 	// fmt.Println("Clinet ", client)
 	router := mux.NewRouter()
 	// To insert the student details
